@@ -19,6 +19,12 @@ A cross-platform .NET 9 application built with Avalonia UI for reading and displ
 
 ## Screenshots
 
+![Controller Explorer Screenshot 1](Assets/CEScreen1.png)
+
+![Controller Explorer Screenshot 2](Assets/CEScreen2.png)
+
+![Controller Explorer Screenshot 3](Assets/CEScreen3.png)
+
 The application displays:
 - Left panel: List of detected controllers with VID:PID identifiers
 - Right panel: Controller metadata and 9-byte data grid with hex/binary values
