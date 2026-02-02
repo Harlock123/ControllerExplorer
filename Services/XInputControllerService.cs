@@ -21,13 +21,13 @@ public class XInputControllerService : IControllerService
 
         try
         {
-            for (int i = 0; i < 4; i++)
+            for (uint i = 0; i < 4; i++)
             {
                 if (XInput.GetState(i, out _))
                 {
                     var capabilities = XInput.GetCapabilities(i, DeviceQueryType.Any, out var caps);
                     var name = capabilities ? GetControllerName(caps.SubType) : "XInput Controller";
-                    controllers.Add(new ControllerDevice(i, $"{name} #{i + 1}"));
+                    controllers.Add(new ControllerDevice((int)i, $"{name} #{i + 1}"));
                 }
             }
         }
@@ -70,7 +70,7 @@ public class XInputControllerService : IControllerService
         {
             try
             {
-                await ReadXInputAsync(device.XInputIndex, token);
+                await ReadXInputAsync((uint)device.XInputIndex, token);
             }
             catch (OperationCanceledException)
             {
@@ -83,7 +83,7 @@ public class XInputControllerService : IControllerService
         }, token);
     }
 
-    private async Task ReadXInputAsync(int controllerIndex, CancellationToken ct)
+    private async Task ReadXInputAsync(uint controllerIndex, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
