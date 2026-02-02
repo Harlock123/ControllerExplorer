@@ -93,6 +93,9 @@ public class HidControllerService : IControllerService
 
     private async Task ReadControllerAsync(ControllerDevice device, CancellationToken ct)
     {
+        if (device.HidDevice is null)
+            throw new InvalidOperationException("Cannot read from a device without HID support");
+
         using var stream = device.HidDevice.Open();
         stream.ReadTimeout = 100; // Short timeout for responsive cancellation
 

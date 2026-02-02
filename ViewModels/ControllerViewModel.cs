@@ -15,13 +15,17 @@ public partial class ControllerViewModel : ViewModelBase
     [ObservableProperty]
     private string _lastUpdateTime = "--:--:--.---";
 
+    private readonly int _byteCount;
+
     public ControllerDevice Device { get; }
 
     public string DisplayName => Device.DisplayName;
 
     public string ProductName => Device.ProductName;
 
-    public string VendorProductId => $"VID:{Device.VendorId:X4} PID:{Device.ProductId:X4}";
+    public string VendorProductId => Device.InputType == InputType.XInput
+        ? $"XInput Index: {Device.XInputIndex}"
+        : $"VID:{Device.VendorId:X4} PID:{Device.ProductId:X4}";
 
     public string Manufacturer => Device.Manufacturer;
 
@@ -32,7 +36,9 @@ public partial class ControllerViewModel : ViewModelBase
         Device = device;
         Bytes = [];
 
-        for (int i = 0; i < ControllerData.ByteCount; i++)
+        _byteCount = device.MaxInputReportLength;
+
+        for (int i = 0; i < _byteCount; i++)
         {
             Bytes.Add(new ByteDisplayViewModel(i));
         }
@@ -40,7 +46,8 @@ public partial class ControllerViewModel : ViewModelBase
 
     public void UpdateData(ControllerData data)
     {
-        for (int i = 0; i < ControllerData.ByteCount && i < Bytes.Count; i++)
+        var updateCount = Math.Min(data.ByteCount, Bytes.Count);
+        for (int i = 0; i < updateCount; i++)
         {
             Bytes[i].UpdateValue(data[i]);
         }

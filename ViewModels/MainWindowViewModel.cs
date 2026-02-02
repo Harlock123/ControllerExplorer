@@ -24,7 +24,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<ControllerViewModel> Controllers { get; } = [];
 
-    public MainWindowViewModel() : this(new HidControllerService())
+    public MainWindowViewModel() : this(new CompositeControllerService())
     {
     }
 
