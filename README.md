@@ -84,6 +84,8 @@ Use the binary visualization to observe which bits change when pressing buttons,
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - A USB or Bluetooth game controller
+- On Linux, a udev rule granting access to the controller — see
+  [Platform Notes > Linux](#linux)
 
 ## Building
 
@@ -124,18 +126,103 @@ Note: Xbox controllers on macOS are read via HID (not XInput) and will have a di
 
 ### Linux
 
-You may need to configure udev rules to allow non-root access to HID devices:
+On Linux, HID devices are exposed as `/dev/hidraw*`, and by default these are
+owned by root with mode `0600`:
+
+```
+crw------- 1 root root 243, 13 /dev/hidraw13
+```
+
+Nothing grants a normal user access to them, so `HidDevice.Open()` fails with a
+permission error and the app reports that it cannot open the HID class device.
+This is the one setup step Linux needs — the app itself requires no changes.
+
+Two things that commonly mislead here:
+
+- **Being in the `input` group does not help.** That group governs
+  `/dev/input/*`, not `/dev/hidraw*`.
+- **systemd's built-in `uaccess` rules do not cover gamepads.** They grant
+  hidraw access to 3D mice, hardware wallets and DJ controllers only, so a game
+  controller gets nothing.
+
+#### 1. Find your controller's vendor and product ID
 
 ```bash
-# Create a udev rule (example)
-sudo nano /etc/udev/rules.d/99-hid.rules
+# List every HID device with its VID:PID
+for d in /sys/class/hidraw/hidraw*; do
+  echo "$(basename $d): $(grep HID_NAME $d/device/uevent | cut -d= -f2)"
+  grep HID_ID $d/device/uevent
+done
 
-# Add a rule for your controller (replace VID and PID)
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="xxxx", ATTRS{idProduct}=="yyyy", MODE="0666"
-
-# Reload rules
-sudo udevadm control --reload-rules
+# Or, if you know the device node
+udevadm info -q property -n /dev/hidraw13 | grep -E "ID_VENDOR_ID|ID_MODEL_ID|ID_MODEL="
 ```
+
+`HID_ID` is formatted `bus:VVVVVVVV:PPPPPPPP`; the last four hex digits of each
+of the final two fields are the vendor and product ID. For example
+`0003:00000079:00000011` means vendor `0079`, product `0011`.
+
+#### 2. Add a udev rule
+
+```bash
+sudo nano /etc/udev/rules.d/70-controller-explorer.rules
+```
+
+```udev
+# Grant the logged-in user access to this controller.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0079", ATTRS{idProduct}=="0011", TAG+="uaccess"
+```
+
+Add one line per controller you want to inspect.
+
+`TAG+="uaccess"` grants an ACL to whoever is physically logged in, which is
+safer than the `MODE="0666"` seen in many guides — that makes the device
+readable and writable by *every* account and every process on the machine,
+including anything sandboxed or remote.
+
+#### 3. Reload and reconnect
+
+```bash
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+Then **unplug and replug the controller**. The ACL is applied when the device
+appears, so a device that was already connected keeps its old permissions.
+
+#### 4. Verify
+
+```bash
+getfacl /dev/hidraw13
+```
+
+You should see a line naming your user:
+
+```
+user:yourname:rw-
+```
+
+If it is missing, the rule did not match — re-check the VID/PID and confirm you
+replugged the device.
+
+#### Granting access to all HID devices
+
+For exploring arbitrary devices, a single rule covers everything:
+
+```udev
+SUBSYSTEM=="hidraw", TAG+="uaccess"
+```
+
+Convenient, but note what it means: `hidraw` includes your **keyboards**, so any
+process running as your user could read raw keystrokes. Prefer per-device rules
+unless you specifically need the wide net.
+
+#### Note on XInput
+
+XInput is Windows-only. The project already handles this — `Vortice.XInput` is
+referenced only on Windows and the XInput service is compiled out via
+`#if WINDOWS` — so on Linux the app builds clean and uses the HID path for every
+controller, including Xbox pads. Expect a different byte layout than the XInput
+tables above.
 
 ## Technology Stack
 
