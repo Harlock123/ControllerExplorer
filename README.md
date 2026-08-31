@@ -216,6 +216,34 @@ Convenient, but note what it means: `hidraw` includes your **keyboards**, so any
 process running as your user could read raw keystrokes. Prefer per-device rules
 unless you specifically need the wide net.
 
+#### Display scaling (HiDPI)
+
+Avalonia uses its X11 backend on Linux, so under a Wayland compositor the app
+runs through XWayland — which is never told about fractional scaling. On a HiDPI
+screen the UI would render at 1x and look tiny while native apps scale
+correctly.
+
+The app now detects the desktop scale at startup and applies it before Avalonia
+initializes, so this works with no configuration. It reads, in order:
+
+1. Hyprland's exact per-monitor scale, via `hyprctl -j monitors`
+2. `GDK_SCALE` (integer only, so 1.6 would be reported as 2)
+3. `Xft.dpi` from `xrdb -query`, where 96 dpi is 1x
+
+To override the detection, set either variable before launching — an explicit
+value always wins:
+
+```bash
+AVALONIA_GLOBAL_SCALE_FACTOR=1.5 dotnet run
+
+# or per monitor
+AVALONIA_SCREEN_SCALE_FACTORS="DP-2=1.6;HDMI-A-1=1" dotnet run
+```
+
+Detection uses the focused monitor's scale and applies it globally. On a
+multi-monitor setup with *different* scales, set `AVALONIA_SCREEN_SCALE_FACTORS`
+explicitly.
+
 #### Note on XInput
 
 XInput is Windows-only. The project already handles this — `Vortice.XInput` is
