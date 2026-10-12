@@ -1,0 +1,105 @@
+name: Release
+
+# Cuts a release for every v* tag, or on demand from the Actions tab:
+#
+#   git tag v1.1.0 && git push origin v1.1.0
+#
+# Each platform's build is self-contained (download, extract, run: no .NET to
+# install first) and all of them cross-build from one Linux runner. The Windows
+# builds still get XInput: the project decides that by the platform it is built
+# for, not the machine building it.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build and release, without the leading v (e.g. 1.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Resolve version
+        id: version
+        # Context values arrive as environment variables rather than being interpolated
+        # into the script, so a tag name can never be executed as shell.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then version="$INPUT_VERSION"; else version="${TAG_NAME#v}"; fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$version' is not a valid version (expected 1.2.3 or 1.2.3-beta.1)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Publish for every platform
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for rid in win-x64 win-x86 win-arm64 osx-x64 osx-arm64 linux-x64 linux-arm64; do
+            out="publish/$rid"
+            dotnet publish ControllerExplorer.csproj -c Release -r "$rid" --self-contained \
+              -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+              -p:EnableCompressionInSingleFile=true -p:DebugType=none \
+              -p:Version="$VERSION" -o "$out"
+            cp README.md LICENSE "$out/"
+            name="controllerexplorer-$VERSION-$rid"
+            case "$rid" in
+              win-*) (cd "$out" && zip -qr "../../dist/$name.zip" .) ;;
+              *)     tar -czf "dist/$name.tar.gz" -C "$out" . ;;
+            esac
+          done
+          cd dist && sha256sum * > SHA256SUMS
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'EOF'
+          Controller Explorer, self-contained for each platform: download the archive for yours,
+          extract it and run `ControllerExplorer`. Nothing else to install.
+
+          - **Windows:** Xbox-style controllers are read through XInput, everything else through HID.
+          - **macOS:** the app is not signed, so the first launch is blocked: run
+            `xattr -d com.apple.quarantine ControllerExplorer` once, or allow it under
+            System Settings → Privacy & Security. Reading controllers may also need it added under
+            Privacy & Security → Input Monitoring.
+          - **Linux:** `chmod +x ControllerExplorer` if the executable bit was lost. Controllers
+            are `/dev/hidraw*` devices, which need a udev rule before a normal user can read them;
+            the README's *Platform Notes → Linux* section has the one-line rule.
+          EOF
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release upload "v$VERSION" dist/* --clobber
+          else
+            gh release create "v$VERSION" dist/* --title "Controller Explorer $VERSION" --notes-file notes.md --target "$GITHUB_SHA"
+          fi

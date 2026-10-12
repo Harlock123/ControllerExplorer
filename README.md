@@ -80,6 +80,14 @@ HID controllers report variable-length data depending on the device. The byte la
 
 Use the binary visualization to observe which bits change when pressing buttons, and watch the hex values when moving analog inputs to decode your specific controller's data format.
 
+## Download
+
+Prebuilt builds for Windows, macOS and Linux are on the [releases page](../../releases): download the
+archive for your platform, extract it and run `ControllerExplorer`. They're self-contained, so there's
+no .NET to install first. The Windows builds include XInput. On macOS the app isn't signed, so clear
+the quarantine once with `xattr -d com.apple.quarantine ControllerExplorer` (or allow it under
+System Settings → Privacy & Security). On Linux, see [Platform Notes > Linux](#linux) for the udev rule.
+
 ## Requirements
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
@@ -91,7 +99,7 @@ Use the binary visualization to observe which bits change when pressing buttons,
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ControllerExplorer.git
+git clone https://github.com/Harlock123/ControllerExplorer.git
 cd ControllerExplorer
 
 # Build

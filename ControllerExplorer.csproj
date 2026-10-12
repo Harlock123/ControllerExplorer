@@ -9,7 +9,14 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+  <!-- XInput is Windows-only. Built for a platform (dotnet publish -r win-x64), that platform decides;
+       otherwise the machine building it does. So a Windows release built on Linux keeps XInput. -->
+  <PropertyGroup>
+    <TargetsWindows Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier.StartsWith('win'))</TargetsWindows>
+    <TargetsWindows Condition="'$(RuntimeIdentifier)' == ''">$([MSBuild]::IsOSPlatform('Windows'))</TargetsWindows>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetsWindows)' == 'true'">
     <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
   </PropertyGroup>
 
@@ -30,6 +37,6 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
     <PackageReference Include="HidSharp" Version="2.6.4" />
-    <PackageReference Include="Vortice.XInput" Version="3.7.0" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="Vortice.XInput" Version="3.7.0" Condition="'$(TargetsWindows)' == 'true'" />
   </ItemGroup>
 </Project>
