@@ -12,6 +12,23 @@ A cross-platform .NET 9 application built with Avalonia UI for reading and displ
 - **Cross-platform** - Runs on Windows, macOS, and Linux
 - **Screenshot export** - Save the current view as a PNG image
 
+## Download
+
+**[Get the latest release](../../releases/latest)**: the archive for your platform, then extract it and
+run `ControllerExplorer`. Each build is one self-contained file, so there is no .NET to install first.
+
+| Platform | Archive |
+| --- | --- |
+| Windows | `win-x64`, `win-x86` or `win-arm64` (.zip): Xbox-style pads are read through XInput |
+| macOS | `osx-arm64` for Apple Silicon, `osx-x64` for Intel (.tar.gz) |
+| Linux | `linux-x64` or `linux-arm64` (.tar.gz) |
+
+The macOS builds are not signed, so clear the quarantine once before the first launch:
+`xattr -d com.apple.quarantine ControllerExplorer` (or allow it under System Settings → Privacy &
+Security), and add it under Privacy & Security → Input Monitoring so it can read controllers. On
+Linux, `chmod +x ControllerExplorer` if your extractor dropped the executable bit, and see
+[Platform Notes > Linux](#linux) for the udev rule that lets it open a controller.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -79,14 +96,6 @@ HID controllers report variable-length data depending on the device. The byte la
 - **D-Pad**: Often encoded as a 4-bit value (0-7 for directions, 8 or 15 for neutral)
 
 Use the binary visualization to observe which bits change when pressing buttons, and watch the hex values when moving analog inputs to decode your specific controller's data format.
-
-## Download
-
-Prebuilt builds for Windows, macOS and Linux are on the [releases page](../../releases): download the
-archive for your platform, extract it and run `ControllerExplorer`. They're self-contained, so there's
-no .NET to install first. The Windows builds include XInput. On macOS the app isn't signed, so clear
-the quarantine once with `xattr -d com.apple.quarantine ControllerExplorer` (or allow it under
-System Settings → Privacy & Security). On Linux, see [Platform Notes > Linux](#linux) for the udev rule.
 
 ## Requirements
 
